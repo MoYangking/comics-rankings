@@ -6,60 +6,63 @@ on:
   workflow_dispatch:
 
 jobs:
-  crawl-and-release:
+  run-crawler:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      actions: read
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
 
-    - name: Install dependencies
-      run: |
-        pip install -r src/requirements.txt
+      - name: Install dependencies
+        run: pip install -r src/requirements.txt
 
-    - name: Run crawler
-      run: |
-        python src/crawler.py
+      - name: Install Chromium and Chromedriver
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser chromium-chromedriver
+          # 建立 chromedriver 的软链接，确保路径正确
+          sudo ln -s /usr/lib/chromium-browser/chromedriver /usr/bin/chromedriver || true
 
-    - name: Get current date
-      id: date
-      run: echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+      - name: Run crawler
+        run: |
+          python src/crawler.py
 
-    - name: Create Release and Upload
-      uses: softprops/action-gh-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: daily-${{ env.DATE }}
-        name: "Comics Daily - ${{ env.DATE }}"
-        body: |
-          自动生成的漫画热门数据 (${{ env.DATE }})
-          
-          中文漫画:
-          - 每日热门数据
-          - 每周热门数据
-          
-          日文漫画:
-          - 每日热门数据
-          - 每周热门数据
-          
-          英文漫画:
-          - 每日热门数据
-          - 每周热门数据
-        files: |
-          output/chinese-comics-today-${{ env.DATE }}.json
-          output/chinese-comics-week-${{ env.DATE }}.json
-          output/japanese-comics-today-${{ env.DATE }}.json
-          output/japanese-comics-week-${{ env.DATE }}.json
-          output/english-comics-today-${{ env.DATE }}.json
-          output/english-comics-week-${{ env.DATE }}.json
-        draft: false
-        prerelease: false
+      - name: Get current date
+        id: date
+        run: echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
+      - name: Create Release and Upload
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: daily-${{ env.DATE }}
+          name: "Comics Daily - ${{ env.DATE }}"
+          body: |
+            自动生成的漫画热门数据 (${{ env.DATE }})
+            
+            中文漫画:
+            - 每日热门数据
+            - 每周热门数据
+            
+            日文漫画:
+            - 每日热门数据
+            - 每周热门数据
+            
+            英文漫画:
+            - 每日热门数据
+            - 每周热门数据
+          files: |
+            output/chinese-comics-today-${{ env.DATE }}.json
+            output/chinese-comics-week-${{ env.DATE }}.json
+            output/japanese-comics-today-${{ env.DATE }}.json
+            output/japanese-comics-week-${{ env.DATE }}.json
+            output/english-comics-today-${{ env.DATE }}.json
+            output/english-comics-week-${{ env.DATE }}.json
+          draft: false
+          prerelease: false
