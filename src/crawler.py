@@ -17,7 +17,7 @@ DELAY_SECONDS = 1
 BASE_DOMAIN = "nhentai.net"
 USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
               "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-MAX_ITEMS = 500
+MAX_ITEMS = 400
 
 LANGUAGES = {
     'chinese': '中文',
