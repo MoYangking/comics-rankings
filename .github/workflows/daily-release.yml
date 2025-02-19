@@ -1,14 +1,8 @@
-name: Daily Release
-
-on:
-  schedule:
-    - cron: "0 23 * * *"
-  workflow_dispatch:
-
 jobs:
   run-crawler:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write  # 允许对仓库内容进行写操作
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -27,15 +21,14 @@ jobs:
           sudo apt-get install -y chromium-browser chromium-chromedriver
 
       - name: Run crawler
-        run: |
-          python src/crawler.py
+        run: python src/crawler.py
 
       - name: Get current date
         id: date
         run: echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
       - name: Create Release and Upload
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -43,15 +36,15 @@ jobs:
           name: "Comics Daily - ${{ env.DATE }}"
           body: |
             自动生成的漫画热门数据 (${{ env.DATE }})
-            
+
             中文漫画:
             - 每日热门数据
             - 每周热门数据
-            
+
             日文漫画:
             - 每日热门数据
             - 每周热门数据
-            
+
             英文漫画:
             - 每日热门数据
             - 每周热门数据
