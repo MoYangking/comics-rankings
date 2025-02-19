@@ -21,12 +21,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r src/requirements.txt
 
-      - name: Install Chromium and Chromedriver
+      - name: Install Chromium
         run: |
           sudo apt-get update
-          sudo apt-get install -y chromium-browser chromium-chromedriver
-          # 建立 chromedriver 的软链接，确保路径正确
-          sudo ln -s /usr/lib/chromium-browser/chromedriver /usr/bin/chromedriver || true
+          sudo apt-get install -y chromium-browser
 
       - name: Run crawler
         run: |
