@@ -5,6 +5,7 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
 
 # 重试次数和延迟设置
 MAX_RETRIES = 3
@@ -19,19 +20,23 @@ LANGUAGES = {
 
 def setup_driver():
     """
-    设置 Selenium Chrome 驱动（无头模式）
-    如果 ChromeDriver 没有在 PATH 中，可通过 executable_path 参数指定驱动路径
+    设置 Selenium Chrome 驱动（无头模式），
+    使用 webdriver-manager 自动下载与 Chromium 版本匹配的 ChromeDriver
     """
     options = Options()
     options.add_argument('--headless')  # 无头模式，不显示浏览器窗口
     options.add_argument('--disable-gpu')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    # 设置与 requests 中一致的 User-Agent
+    # 设置自定义的 User-Agent
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                          "AppleWebKit/537.36 (KHTML, like Gecko) "
                          "Chrome/120.0.0.0 Safari/537.36")
-    driver = webdriver.Chrome(options=options)
+    # 指定 Chromium 浏览器二进制文件路径（GitHub Actions Ubuntu 环境中已安装 chromium-browser）
+    options.binary_location = '/usr/bin/chromium-browser'
+    
+    # 自动下载与 Chromium 版本匹配的 ChromeDriver
+    driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
     return driver
 
 def crawl_page(url, driver):
@@ -39,9 +44,9 @@ def crawl_page(url, driver):
     for attempt in range(MAX_RETRIES):
         try:
             driver.get(url)
-            # 简单等待页面加载完成
+            # 等待页面加载完成（这里采用简单等待，可替换为 WebDriverWait）
             time.sleep(3)
-            # 判断页面是否为 404 页面（可根据实际情况调整判断逻辑）
+            # 检查页面标题是否包含 "404"
             if "404" in driver.title:
                 return None
             return driver.page_source
