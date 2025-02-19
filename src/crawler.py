@@ -11,7 +11,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 
-# Constants
+# 常量设置
 MAX_RETRIES = 3
 DELAY_SECONDS = 1
 BASE_DOMAIN = "nhentai.net"
@@ -34,6 +34,7 @@ def get_current_time():
 def setup_chrome_options():
     """配置 Chrome 选项"""
     options = Options()
+    # 如需无头模式，可取消下面注释
     # options.add_argument('--headless=new')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
@@ -191,8 +192,13 @@ def parse_comic_data(comic, driver):
         return None
 
 
-def crawl_all_pages(period='today', language='chinese', driver=None, limit=MAX_ITEMS):
-    """爬取所有分页数据，最多获取前 limit 条数据"""
+def crawl_all_pages(period='today', language='chinese', driver=None, limit=MAX_ITEMS, scraped_links=None):
+    """
+    爬取所有分页数据，最多获取前 limit 条数据
+    增加 scraped_links 参数用于存储已爬取的漫画链接，避免重复爬取
+    """
+    if scraped_links is None:
+        scraped_links = set()
     base_url = f"https://{BASE_DOMAIN}/language/{language}/popular-{period}"
     page = 1
     all_data = []
@@ -213,10 +219,23 @@ def crawl_all_pages(period='today', language='chinese', driver=None, limit=MAX_I
         for comic in comics:
             if len(all_data) >= limit:
                 break
+
+            # 提取漫画链接，用于判断是否已爬取
+            link_tag = comic.find('a')
+            if not link_tag or not link_tag.get('href'):
+                continue
+            comic_link = f"https://{BASE_DOMAIN}{link_tag['href']}"
+
+            if comic_link in scraped_links:
+                print(f"[{get_current_time()}] 跳过重复漫画: {comic_link}")
+                continue
+
+            # 解析漫画数据并进入详情页获取详细信息
             comic_data = parse_comic_data(comic, driver)
             if comic_data:
                 comic_data['page'] = page
                 all_data.append(comic_data)
+                scraped_links.add(comic_link)  # 记录已爬取的链接
 
         print(f"[{get_current_time()}] 成功解析第 {page} 页，当前总数: {len(all_data)} 条数据")
         if len(all_data) >= limit:
@@ -273,14 +292,17 @@ def main():
     try:
         for lang, lang_name in LANGUAGES.items():
             print(f"\n[{get_current_time()}] 开始爬取 {lang_name} 数据")
+            # 为每个语言维护一个集合，用于记录已爬取的漫画链接，防止重复爬取
+            scraped_links = set()
+
             print(f"\n[{get_current_time()}] 爬取 {lang_name} 每日热门...")
-            daily_comics = crawl_all_pages('today', lang, driver)
+            daily_comics = crawl_all_pages('today', lang, driver, scraped_links=scraped_links)
             if daily_comics:
                 save_to_json(daily_comics, 'today', lang)
                 print(f"[{get_current_time()}] {lang_name} 每日热门：{len(daily_comics)} 条数据")
 
             print(f"\n[{get_current_time()}] 爬取 {lang_name} 每周热门...")
-            weekly_comics = crawl_all_pages('week', lang, driver)
+            weekly_comics = crawl_all_pages('week', lang, driver, scraped_links=scraped_links)
             if weekly_comics:
                 save_to_json(weekly_comics, 'week', lang)
                 print(f"[{get_current_time()}] {lang_name} 每周热门：{len(weekly_comics)} 条数据")
