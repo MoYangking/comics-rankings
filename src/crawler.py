@@ -17,7 +17,7 @@ DELAY_SECONDS = 1
 BASE_DOMAIN = "nhentai.net"
 USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
               "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-MAX_ITEMS = 200 
+MAX_ITEMS = 200
 
 LANGUAGES = {
     'chinese': '中文',
@@ -34,7 +34,7 @@ def get_current_time():
 def setup_chrome_options():
     """配置 Chrome 选项"""
     options = Options()
-    options.add_argument('--headless=new')
+    # options.add_argument('--headless=new')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--disable-gpu')
