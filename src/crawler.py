@@ -5,6 +5,7 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
 # 重试次数和延迟设置
@@ -35,8 +36,11 @@ def setup_driver():
     # 指定 Chromium 浏览器二进制文件路径（GitHub Actions Ubuntu 环境中已安装 chromium-browser）
     options.binary_location = '/usr/bin/chromium-browser'
     
-    # 自动下载与 Chromium 版本匹配的 ChromeDriver
-    driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
+    # 使用 Service 对象传递 chromedriver 路径
+    driver = webdriver.Chrome(
+        service=Service(ChromeDriverManager().install()),
+        options=options
+    )
     return driver
 
 def crawl_page(url, driver):
