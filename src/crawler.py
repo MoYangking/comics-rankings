@@ -35,7 +35,7 @@ def setup_chrome_options():
     """配置 Chrome 选项"""
     options = Options()
     # 如需无头模式，可取消下面注释
-    # options.add_argument('--headless=new')
+    options.add_argument('--headless=new')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--disable-gpu')
