@@ -1,14 +1,12 @@
-import requests
-from bs4 import BeautifulSoup
-import json
 import os
 import time
+import json
 from datetime import datetime
+from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 
-# 配置参数
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-}
+# 重试次数和延迟设置
 MAX_RETRIES = 3
 DELAY_SECONDS = 0.5
 
@@ -19,26 +17,47 @@ LANGUAGES = {
     'english': '英文'
 }
 
-def crawl_page(url):
-    """爬取单页数据"""
-    for _ in range(MAX_RETRIES):
+def setup_driver():
+    """
+    设置 Selenium Chrome 驱动（无头模式）
+    如果 ChromeDriver 没有在 PATH 中，可通过 executable_path 参数指定驱动路径
+    """
+    options = Options()
+    options.add_argument('--headless')  # 无头模式，不显示浏览器窗口
+    options.add_argument('--disable-gpu')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    # 设置与 requests 中一致的 User-Agent
+    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                         "AppleWebKit/537.36 (KHTML, like Gecko) "
+                         "Chrome/120.0.0.0 Safari/537.36")
+    driver = webdriver.Chrome(options=options)
+    return driver
+
+def crawl_page(url, driver):
+    """使用 Selenium 爬取单个页面的源码"""
+    for attempt in range(MAX_RETRIES):
         try:
-            response = requests.get(url, headers=HEADERS, timeout=10)
-            if response.status_code == 200:
-                return response
-            elif response.status_code == 404:  # 无更多页面
+            driver.get(url)
+            # 简单等待页面加载完成
+            time.sleep(3)
+            # 判断页面是否为 404 页面（可根据实际情况调整判断逻辑）
+            if "404" in driver.title:
                 return None
+            return driver.page_source
         except Exception as e:
-            print(f"请求失败: {e}, 重试中...")
+            print(f"请求失败: {e}, 正在重试（{attempt+1}/{MAX_RETRIES}）...")
             time.sleep(5)
     return None
 
-def crawl_all_pages(period='today', language='chinese'):
-    """自动爬取所有分页
-    
+def crawl_all_pages(period='today', language='chinese', driver=None):
+    """
+    自动爬取所有分页数据
+
     Args:
         period: 时间周期，可选 'today' 或 'week'
         language: 语言，可选 'chinese', 'japanese', 'english'
+        driver: Selenium 驱动实例
     """
     base_url = f"https://nhentai.net/language/{language}/popular-{period}"
     page = 1
@@ -46,45 +65,44 @@ def crawl_all_pages(period='today', language='chinese'):
     
     while True:
         url = f"{base_url}?page={page}"
-        print(f"正在爬取{LANGUAGES.get(language, language)}语{period}排行第 {page} 页: {url}")
+        print(f"正在爬取 {LANGUAGES.get(language, language)}语 {period} 排行第 {page} 页: {url}")
         
-        response = crawl_page(url)
-        if not response:
+        html = crawl_page(url, driver)
+        if not html:
             break
-            
-        soup = BeautifulSoup(response.text, 'html.parser')
+
+        soup = BeautifulSoup(html, 'html.parser')
         comics = soup.find_all('div', class_='gallery')
+        if not comics:
+            break
         
-        # 解析数据
+        # 解析页面中的漫画数据
         for comic in comics:
-            title = comic.find('div', class_='caption').text.strip()
-            link = "https://nhentai.net" + comic.find('a')['href']
-            cover = comic.find('img')['data-src']
+            caption_div = comic.find('div', class_='caption')
+            title = caption_div.text.strip() if caption_div else "未知标题"
+            link_tag = comic.find('a')
+            link = "https://nhentai.net" + link_tag['href'] if link_tag and link_tag.get('href') else ""
+            img_tag = comic.find('img')
+            cover = img_tag['data-src'] if img_tag and img_tag.get('data-src') else ""
             all_data.append({
                 "title": title,
                 "link": link,
                 "cover": cover,
-                "page": page  # 记录来源页码
+                "page": page
             })
         
         # 检查是否存在下一页按钮
         next_button = soup.find('a', class_='next')
         if not next_button:
             break
-            
+        
         page += 1
-        time.sleep(DELAY_SECONDS)  # 礼貌性延迟
+        time.sleep(DELAY_SECONDS)
     
     return all_data
 
 def save_to_json(data, period='today', language='chinese'):
-    """保存数据到JSON文件
-    
-    Args:
-        data: 要保存的数据
-        period: 时间周期，用于文件名
-        language: 语言标识
-    """
+    """保存数据到 JSON 文件"""
     os.makedirs("output", exist_ok=True)
     timestamp = datetime.now().strftime("%Y-%m-%d")
     filename = f"output/{language}-comics-{period}-{timestamp}.json"
@@ -95,16 +113,23 @@ def save_to_json(data, period='today', language='chinese'):
     return filename
 
 if __name__ == "__main__":
-    # 遍历所有语言
-    for lang, lang_name in LANGUAGES.items():
-        print(f"\n开始爬取{lang_name}漫画数据...")
-        
-        # 爬取每日热门
-        daily_comics = crawl_all_pages('today', lang)
-        daily_output = save_to_json(daily_comics, 'today', lang)
-        print(f"{lang_name}每日热门：共爬取 {len(daily_comics)} 条数据，保存至 {daily_output}")
-        
-        # 爬取每周热门
-        weekly_comics = crawl_all_pages('week', lang)
-        weekly_output = save_to_json(weekly_comics, 'week', lang)
-        print(f"{lang_name}每周热门：共爬取 {len(weekly_comics)} 条数据，保存至 {weekly_output}")
+    # 初始化 Selenium 驱动
+    driver = setup_driver()
+    
+    try:
+        # 遍历所有语言进行数据爬取
+        for lang, lang_name in LANGUAGES.items():
+            print(f"\n开始爬取 {lang_name} 漫画数据...")
+            
+            # 爬取每日热门数据
+            daily_comics = crawl_all_pages('today', lang, driver)
+            daily_output = save_to_json(daily_comics, 'today', lang)
+            print(f"{lang_name} 每日热门：共爬取 {len(daily_comics)} 条数据，保存至 {daily_output}")
+            
+            # 爬取每周热门数据
+            weekly_comics = crawl_all_pages('week', lang, driver)
+            weekly_output = save_to_json(weekly_comics, 'week', lang)
+            print(f"{lang_name} 每周热门：共爬取 {len(weekly_comics)} 条数据，保存至 {weekly_output}")
+    
+    finally:
+        driver.quit()
