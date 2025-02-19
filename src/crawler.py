@@ -12,7 +12,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 
 # 常量设置
-MAX_RETRIES = 3
+MAX_RETRIES = 5
 DELAY_SECONDS = 1
 BASE_DOMAIN = "nhentai.net"
 USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -80,23 +80,34 @@ def wait_for_elements(driver, selector, timeout=10):
 
 
 def crawl_page(url, driver):
-    """爬取单个页面内容"""
+    """
+    爬取单个页面内容，若页面未找到内容或返回 404 则重试直到 MAX_RETRIES
+    """
     for attempt in range(MAX_RETRIES):
         try:
-            print(f"[{get_current_time()}] 正在请求页面: {url}")
+            print(f"[{get_current_time()}] 正在请求页面: {url} (尝试 {attempt+1}/{MAX_RETRIES})")
             driver.get(url)
             galleries = wait_for_elements(driver, "div.gallery")
             if not galleries:
                 print(f"[{get_current_time()}] 页面未找到内容: {url}")
-                return None
+                if attempt < MAX_RETRIES - 1:
+                    time.sleep(5)
+                    continue
+                else:
+                    return None
             if "404" in driver.title:
                 print(f"[{get_current_time()}] 页面返回 404: {url}")
-                return None
+                if attempt < MAX_RETRIES - 1:
+                    time.sleep(5)
+                    continue
+                else:
+                    return None
             return driver.page_source
         except Exception as e:
             print(f"[{get_current_time()}] 请求失败 ({attempt + 1}/{MAX_RETRIES}): {str(e)}")
             if attempt < MAX_RETRIES - 1:
                 time.sleep(5)
+                continue
     return None
 
 
@@ -317,7 +328,7 @@ def main():
             print(f"[{get_current_time()}] 关闭 WebDriver 时发生错误: {str(e)}")
 
     end_time = get_current_time()
-    print(f"[{end_time}] 爬虫任务完成")
+    print(f"[{get_current_time()}] 爬虫任务完成")
 
 
 if __name__ == "__main__":
