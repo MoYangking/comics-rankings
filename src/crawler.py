@@ -105,7 +105,7 @@ def get_comic_details(comic_url, driver):
     进入漫画详情页，提取详细信息：
       - pages: 漫画页数
       - uploaded_at: 上传时间（<time> 标签的 datetime 属性）
-      - tags: 剩余标签信息，按分类存放（例如 Parodies、Tags、Artists、Languages、Categories 等）
+      - tags: 其他标签信息，按分类存放（例如 Parodies、Tags、Artists、Languages、Categories 等）
     """
     details = {"pages": None, "uploaded_at": "", "tags": {}}
     try:
@@ -192,13 +192,13 @@ def parse_comic_data(comic, driver):
         return None
 
 
-def crawl_all_pages(period='today', language='chinese', driver=None, limit=MAX_ITEMS, scraped_links=None):
+def crawl_all_pages(period='today', language='chinese', driver=None, limit=MAX_ITEMS, scraped_comics=None):
     """
     爬取所有分页数据，最多获取前 limit 条数据
-    增加 scraped_links 参数用于存储已爬取的漫画链接，避免重复爬取
+    scraped_comics: 用于存储已爬取的漫画数据，避免重复详情爬取，同时重复的漫画也会计入最终返回的列表中
     """
-    if scraped_links is None:
-        scraped_links = set()
+    if scraped_comics is None:
+        scraped_comics = dict()
     base_url = f"https://{BASE_DOMAIN}/language/{language}/popular-{period}"
     page = 1
     all_data = []
@@ -226,16 +226,17 @@ def crawl_all_pages(period='today', language='chinese', driver=None, limit=MAX_I
                 continue
             comic_link = f"https://{BASE_DOMAIN}{link_tag['href']}"
 
-            if comic_link in scraped_links:
-                print(f"[{get_current_time()}] 跳过重复漫画: {comic_link}")
-                continue
-
-            # 解析漫画数据并进入详情页获取详细信息
-            comic_data = parse_comic_data(comic, driver)
-            if comic_data:
-                comic_data['page'] = page
+            if comic_link in scraped_comics:
+                print(f"[{get_current_time()}] 重复漫画，直接使用缓存数据: {comic_link}")
+                # 这里重复的漫画也计入返回列表，保证最终记录数达到 MAX_ITEMS
+                comic_data = scraped_comics[comic_link]
                 all_data.append(comic_data)
-                scraped_links.add(comic_link)  # 记录已爬取的链接
+            else:
+                comic_data = parse_comic_data(comic, driver)
+                if comic_data:
+                    comic_data['page'] = page
+                    scraped_comics[comic_link] = comic_data  # 缓存爬取结果
+                    all_data.append(comic_data)
 
         print(f"[{get_current_time()}] 成功解析第 {page} 页，当前总数: {len(all_data)} 条数据")
         if len(all_data) >= limit:
@@ -292,17 +293,17 @@ def main():
     try:
         for lang, lang_name in LANGUAGES.items():
             print(f"\n[{get_current_time()}] 开始爬取 {lang_name} 数据")
-            # 为每个语言维护一个集合，用于记录已爬取的漫画链接，防止重复爬取
-            scraped_links = set()
+            # 为每个语言维护一个字典，用于缓存已爬取的漫画数据，重复漫画直接引用缓存数据
+            scraped_comics = dict()
 
             print(f"\n[{get_current_time()}] 爬取 {lang_name} 每日热门...")
-            daily_comics = crawl_all_pages('today', lang, driver, scraped_links=scraped_links)
+            daily_comics = crawl_all_pages('today', lang, driver, scraped_comics=scraped_comics)
             if daily_comics:
                 save_to_json(daily_comics, 'today', lang)
                 print(f"[{get_current_time()}] {lang_name} 每日热门：{len(daily_comics)} 条数据")
 
             print(f"\n[{get_current_time()}] 爬取 {lang_name} 每周热门...")
-            weekly_comics = crawl_all_pages('week', lang, driver, scraped_links=scraped_links)
+            weekly_comics = crawl_all_pages('week', lang, driver, scraped_comics=scraped_comics)
             if weekly_comics:
                 save_to_json(weekly_comics, 'week', lang)
                 print(f"[{get_current_time()}] {lang_name} 每周热门：{len(weekly_comics)} 条数据")
