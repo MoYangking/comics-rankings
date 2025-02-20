@@ -3,7 +3,7 @@ name: Daily Release
 # 触发条件：每天23:00或手动触发
 on:
   schedule:
-    - cron: "0 23 * * *"
+    - cron: "0 20 * * *"
   workflow_dispatch:
 
 # 设置权限
