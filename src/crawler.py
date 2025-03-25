@@ -295,6 +295,22 @@ def main():
     """主函数"""
     start_time = get_current_time()
     print(f"[{start_time}] 开始爬虫任务")
+    
+    # 访问HuggingFace项目页面保活
+    try:
+        print(f"[{get_current_time()}] 正在访问HuggingFace项目页面保活...")
+        keep_alive_driver = setup_driver()
+        keep_alive_driver.get("https://moyang303-astrbot-hf.hf.space")
+        # 等待页面加载完成
+        WebDriverWait(keep_alive_driver, 30).until(
+            EC.presence_of_element_located((By.TAG_NAME, "body"))
+        )
+        print(f"[{get_current_time()}] HuggingFace项目页面访问成功")
+        keep_alive_driver.quit()
+        print(f"[{get_current_time()}] 已关闭保活浏览器")
+    except Exception as e:
+        print(f"[{get_current_time()}] 访问HuggingFace项目页面失败: {str(e)}")
+    
     try:
         driver = setup_driver()
     except Exception as e:
