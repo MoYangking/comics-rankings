@@ -293,6 +293,8 @@ def save_to_json(data, period='today', language='chinese'):
 
 def main():
     """主函数"""
+    SPACE_URL = "https://moyang303-astrbot-hf.hf.space"
+    response = requests.get(SPACE_URL)
     start_time = get_current_time()
     print(f"[{start_time}] 开始爬虫任务")
     try:
