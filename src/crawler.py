@@ -327,7 +327,7 @@ def main():
     except Exception as e:
         print(f"[{get_current_time()}] 访问HuggingFace项目页面失败: {str(e)}")
 
-  try:
+    try:
         print(f"[{get_current_time()}] 正在访问HuggingFace项目页面保活...")
         keep_alive_driver = setup_driver()
         keep_alive_driver.get("https://moyang303-jiu.hf.space/")
