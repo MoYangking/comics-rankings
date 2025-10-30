@@ -316,7 +316,7 @@ def main():
     try:
         print(f"[{get_current_time()}] 正在访问HuggingFace项目页面保活...")
         keep_alive_driver = setup_driver()
-        keep_alive_driver.get("https://moyang303-gemini.hf.space")
+        keep_alive_driver.get("https://at.moyang1.top/")
         # 等待页面加载完成
         WebDriverWait(keep_alive_driver, 30).until(
             EC.presence_of_element_located((By.TAG_NAME, "body"))
